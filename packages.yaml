@@ -27,6 +27,12 @@
 - name: python-rpmautospec
   nobuild: true
   install: [rpmautospec-rpm-macros]
+- name: python-wheel # for pyproject-rpm-macros
+  nobuild: true
+  install: [python3-wheel]
+- name: pyproject-rpm-macros
+  nobuild: true
+  install: [pyproject-rpm-macros]
 - name: perl
   nobuild: true
   install: [perl-macros]
@@ -88,6 +94,14 @@
 
 # ---------------------------------------------------------------------
 
+# build tools
+- name: readline
+  install: [readline, readline-devel]
+- name: bison
+  install: [bison]
+- name: flex
+  install: [flex, libfl, libfl-devel]
+
 # cmake
 - name: vim # for cmake
   nobuild: true
@@ -98,35 +112,6 @@
   install: [cmake, cmake-data, cmake-rpm-macros]
   define:
     _unpackaged_files_terminate_build:
-
-# ruby
-- name: libyaml # for ruby
-  install: [libyaml, libyaml-devel]
-- name: readline # for ruby
-  install: [readline, readline-devel]
-- name: ruby # will error in qemu user mode
-  without: [rubypick, systemtap, hardening_test, yjit]
-  install: [ruby, ruby-devel, rubygems]
-
-# libselinux
-- name: bison # for flex
-  install: [bison]
-- name: flex # for libsepol
-  install: [flex, libfl, libfl-devel]
-- name: pcre2 # for libsepol
-  url: https://koji.fedoraproject.org/koji/buildinfo?buildID=2122857
-  install: [pcre2, pcre2-devel]
-- name: libsepol # for libselinux
-  install: [libsepol, libsepol-devel, libsepol-static]
-
-- name: dos2unix # for swig
-  install: [dos2unix]
-- name: swig # for libselinux
-  without: [testsuite]
-  install: [swig]
-
-- name: libselinux
-  install: [libselinux, libselinux-devel]
 
 # texinfo for gnutls and elfutils
 - name: perl-generators # for texinfo
@@ -178,7 +163,7 @@
   without: [bootstrap, dane, fips, tpm2, gost, tests, srp, mingw]
   install: [gnutls, gnutls-devel]
 
-# elfutils
+# elfutils for systemtap in glib
 - name: doxygen # for libmicrohttpd
   install: [doxygen]
   define:
@@ -187,9 +172,10 @@
 - name: libmicrohttpd # for elfutils
   install: [libmicrohttpd, libmicrohttpd-devel]
 - name: elfutils
-  install: [elfutils, elfutils-devel, elfutils-libs, elfutils-libelf, elfutils-libelf-devel]
+  install: [elfutils, elfutils-devel, elfutils-libs, elfutils-libelf, elfutils-libelf-devel,
+            elfutils-debuginfod, elfutils-debuginfod-client, elfutils-debuginfod-client-devel]
 
-# docbook for glib and chkconfig
+# docbook for glib
 - name: sgml-common # MUST! otherwise there will be many problems
   nobuild: true
   install: [sgml-common, xml-common]
@@ -211,7 +197,7 @@
 - name: docbook-dtds # for docbook-utils
   nobuild: true
   install: [docbook-dtds]
-- name: docbook-utils # for newt
+- name: docbook-utils # for newt in chkconfig
   nobuild: true
   install: [docbook-utils]
 
@@ -220,29 +206,74 @@
   install: [docbook-xsl]
 - name: libxslt # for xmlto
   install: [libxslt, libxslt-devel]
-- name: xmlto # for nss
+- name: xmlto # for nss in glib
   install: [xmlto]
+
+# libselinux for glib
+- name: pcre2 # for libsepol
+  url: https://koji.fedoraproject.org/koji/buildinfo?buildID=2122857
+  install: [pcre2, pcre2-devel]
+- name: libsepol # for libselinux
+  install: [libsepol, libsepol-devel, libsepol-static]
+- name: dos2unix # for swig
+  install: [dos2unix]
+- name: swig # for libselinux
+  without: [testsuite]
+  install: [swig]
+- name: libselinux
+  install: [libselinux, libselinux-devel]
 
 # glib
 - name: nss # for systemtap
   without: [tests]
-  install: [nss, nss-devel]
+  install: [nss, nss-devel, nss-util, nss-utils-devel, nss-softokn, nss-softokn-devel,
+            nss-softokn-freebl, nss-softokn-freebl-devel, nspr, nspr-devel]
   patch:
-    - sed -i 's/\/configure/\/configure --build=%{_build}/' %SPEC # It doesn't use the configure macro
+    - sed -i 's/\/configure/\/configure --build=%{_build}/' %SPEC # it doesn't use rpm's configure macro
+    - sed -i '/%{__os_install_post} \\/a\export LD_LIBRARY_PATH=$RPM_BUILD_ROOT/%{_libdir} \\' %SPEC # nss depends on itself
 - name: cpio # for systemtap
   install: [cpio]
 - name: systemtap # for glib2
-  install: [systemtap]
+  install: [systemtap, systemtap-sdt-devel]
   define:
     fedora:
+    with_openssl: 1
+    with_debuginfod: 1
     with_python3: 1
     with_python2_probes: 0
     with_python3_probes: 1
+- name: marshalparser # for glib2
+  nobuild: true
+  install: [marshalparser]
 
 - name: glib2
   install: [glib2, glib2-devel]
+  patch:
+    - sed -i 's/gtk_doc=true/gtk_doc=false/' %SPEC # we don't have gtk-doc
+    - sed -i 's/sysprof=enabled/sysprof=disabled/' %SPEC # we don't have sysprof
 
-# chkconfig for groff
+    - sed -i '/\/gtk-doc\/$/d' %SPEC
+
+# ---------------------------------------------------------------------
+  
+# ruby
+- name: libyaml # for ruby
+  install: [libyaml, libyaml-devel]
+- name: ruby # will error in qemu user mode
+  without: [rubypick, hardening_test, yjit]
+  install: [ruby, ruby-devel, rubygems]
+
+# e2fsprogs for krb5
+- name: fuse # for e2fsprogs
+  install: [fuse, fuse-devel, fuse-libs]
+- name: e2fsprogs
+  install: [libcom_err, libcom_err-devel, libss, libss-devel]
+  define:
+    _unpackaged_files_terminate_build:
+  patch:
+    - sed -r -i '/%files -n e2scrub/,/^$/d' %SPEC # we don't have systemd
+
+# chkconfig for groff in openldap
 - name: libpng # for slang
   install: [libpng, libpng-devel]
 - name: slang # for newt
@@ -258,8 +289,6 @@
     _unpackaged_files_terminate_build:
 
 # openldap for krb5
-- name: libevent # for openldap
-  install: [libevent, libevent-devel]
 - name: groff # for openldap
   install: [groff, groff-base]
   define:
@@ -284,34 +313,132 @@
     - sed -i '/sasldblistusers2/d' %SPEC
     - sed -i '/\*gssapi\*.so\*/d' %SPEC
     - sed -i '/libgs2.so\*/d' %SPEC
+- name: libevent # for openldap
+  install: [libevent, libevent-devel]
 - name: cracklib # for openldap
   install: [cracklib, cracklib-devel]
 
 - name: openldap
   install: [openldap, openldap-devel]
 
-# e2fsprogs for krb5
-- name: fuse # for e2fsprogs
-  install: [fuse, fuse-devel, fuse-libs]
-- name: e2fsprogs
-  install: [libcom_err, libcom_err-devel, libss, libss-devel]
-  define:
-    _unpackaged_files_terminate_build:
-  patch:
-    - sed -r -i '/%files -n e2scrub/,/^$/d' %SPEC # we don't have systemd
+# krb5
+- name: libev # for libverto
+  install: [libev, libev-devel]
+- name: libverto # for krb5
+  install: [libverto, libverto-devel]
 
-# pam
+- name: python-sphinx # for krb5
+  nobuild: true
+  install: [python3-sphinx]
+- name: python-docutils # for krb5
+  nobuild: true
+  install: [python3-docutils]
+- name: babel # for krb5
+  nobuild: true
+  install: [python3-babel]
+- name: pytz # for krb5
+  nobuild: true
+  install: [python3-pytz]
+- name: python-jinja2 # for krb5
+  nobuild: true
+  install: [python3-jinja2-]
+- name: python-packaging # for krb5
+  nobuild: true
+  install: [python3-packaging]
+- name: snowball # for krb5
+  nobuild: true
+  install: [python3-snowballstemmer]
+- name: python-imagesize # for krb5
+  nobuild: true
+  install: [python3-imagesize]
+- name: python-sphinxcontrib-serializinghtml # for krb5
+  nobuild: true
+  install: [python3-sphinxcontrib-serializinghtml]
+- name: python-sphinxcontrib-applehelp # for krb5
+  nobuild: true
+  install: [python3-sphinxcontrib-applehelp]
+- name: python-sphinxcontrib-devhelp # for krb5
+  nobuild: true
+  install: [python3-sphinxcontrib-devhelp]
+- name: python-sphinxcontrib-htmlhelp # for krb5
+  nobuild: true
+  install: [python3-sphinxcontrib-htmlhelp]
+- name: python-sphinxcontrib-qthelp # for krb5
+  nobuild: true
+  install: [python3-sphinxcontrib-qthelp]
+- name: python-sphinx-theme-alabaster # for krb5
+  nobuild: true
+  install: [python3-sphinx-theme-alabaster]
+- name: python-sphinxcontrib-log-cabinet # for krb5
+  nobuild: true
+  install: [python3-sphinxcontrib-log-cabinet]
 - name: tcl # for krb5
   install: [tcl, tcl-devel]
 - name: lmdb # for krb5
   install: [lmdb, lmdb-devel, lmdb-libs]
-- name: libverto # for krb5
-  install: [libverto, libverto-devel]
-- name: krb5 # for elinks
-  install: [krb5, krb5-devel]
-- name: elinks # for pam
-  install: [elinks]
 
+- name: krb5
+  install: [krb5-libs, krb5-devel]
+  patch:
+    - sed -i 's/--with-pam/--without-pam/' %SPEC # we don't have pam
+
+# ---------------------------------------------------------------------
+
+# file & filesystem
+- name: iso-codes
+  nobuild: true
+  install: [iso-codes]
+- name: file
+- name: filesystem
+  install: [filesystem]
+
+# compress
+- name: tar
+  patch:
+    - sed -i '/%configure/i\export FORCE_UNSAFE_CONFIGURE=1\' %SPEC # root build
+- name: gzip
+- name: xz
+- name: zstd
+- name: lz4
+- name: zip
+  install: [zip]
+- name: unzip
+  install: [unzip]
+
+# some tools
+- name: mpfr # for libmpc
+  install: [mpfr, mpfr-devel]
+- name: libmpc
+
+- name: libattr
+- name: libtirpc
+- name: libutempter
+- name: lua
+- name: m4
+- name: make
+- name: pkgconf
+- name: popt
+- name: patch
+- name: sqlite
+- name: xxhash
+- name: zlib
+
+# - name: authselect
+
+# acl
+- name: acl
+  install: [acl, acl-devel]
+
+# audit
+- name: libcap-ng
+  install: [libcap-ng, libcap-ng-devel]
+- name: audit
+  install: [audit, audit-libs, audit-libs-devel]
+  patch:
+    - sed -i 's/--enable-systemd/--disable-systemd/' %SPEC # we don't have systemd
+    - sed -r -i '/auditd\.service$/d' %SPEC
+
+# pam
 - name: libxml2 # for docbook5
   install: [libxml2, libxml2-devel]
 - name: docbook5-schemas # for pam
@@ -320,6 +447,13 @@
 - name: docbook5-style-xsl # for pam
   nobuild: true
   install: [docbook5-style-xsl]
+
+- name: elinks # for pam
+  install: [elinks]
+- name: chrpath
+  install: [chrpath]
+- name: libdb # for pam
+  install: [libdb, libdb-devel]
 
 - name: pam # bug in 1.5.2
   url: https://koji.fedoraproject.org/koji/buildinfo?buildID=2206209
