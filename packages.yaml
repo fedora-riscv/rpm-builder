@@ -147,11 +147,11 @@
   define:
     __meson_auto_features: auto # we don't have systemd
   patch:
-    - sed -i 's/gtk_doc=true/gtk_doc=false/' %SPEC # we don't have gtk-doc
-    - sed -i 's/man=true/man=false/' %SPEC # we don't have docbook
-    - sed -i '/p11-kit-remote/,/bash-completion/{//!d;}' %SPEC
-    - sed -i '/p11-kit-server$/,/^$/{//!d;}' %SPEC
+    - sed -i 's/-Dgtk_doc=true/-Dgtk_doc=false/' %SPEC # we don't have gtk-doc
     - sed -i '/\/gtk-doc\/$/d' %SPEC
+    - sed -i 's/-Dman=true/-Dman=false/' %SPEC # we don't have docbook
+    - sed -i '/p11-kit-remote$/,/bash-completion/{//!d;}' %SPEC
+    - sed -i '/p11-kit-server$/,/^$/{//!d;}' %SPEC
 
 - name: nettle # for gnutls
   without: [fips]
@@ -249,9 +249,8 @@
 - name: glib2
   install: [glib2, glib2-devel]
   patch:
-    - sed -i 's/gtk_doc=true/gtk_doc=false/' %SPEC # we don't have gtk-doc
-    - sed -i 's/sysprof=enabled/sysprof=disabled/' %SPEC # we don't have sysprof
-
+    - sed -i 's/-Dsysprof=enabled/-Dsysprof=disabled/' %SPEC # we don't have sysprof
+    - sed -i 's/-Dgtk_doc=true/-Dgtk_doc=false/' %SPEC # we don't have gtk-doc
     - sed -i '/\/gtk-doc\/$/d' %SPEC
 
 # ---------------------------------------------------------------------
@@ -271,7 +270,7 @@
   define:
     _unpackaged_files_terminate_build:
   patch:
-    - sed -r -i '/%files -n e2scrub/,/^$/d' %SPEC # we don't have systemd
+    - sed -i '/%files -n e2scrub$/,/^$/d' %SPEC # we don't have systemd
 
 # chkconfig for groff in openldap
 - name: libpng # for slang
@@ -283,10 +282,10 @@
   install: [newt, newt-devel]
 - name: chkconfig
   install: [alternatives]
-  patch:
-    - sed -r -i '/systemd-sysv-install$/d' %SPEC # we don't have systemd
   define:
     _unpackaged_files_terminate_build:
+  patch:
+    - sed -r -i '/systemd-sysv-install$/d' %SPEC # we don't have systemd
 
 # openldap for krb5
 - name: groff # for openldap
@@ -384,14 +383,6 @@
 
 # ---------------------------------------------------------------------
 
-# file & filesystem
-- name: iso-codes
-  nobuild: true
-  install: [iso-codes]
-- name: file
-- name: filesystem
-  install: [filesystem]
-
 # compress
 - name: tar
   patch:
@@ -399,11 +390,107 @@
 - name: gzip
 - name: xz
 - name: zstd
-- name: lz4
+- name: lz4 # for systemd
+  install: [lz4, lz4-devel, lz4-libs]
 - name: zip
   install: [zip]
 - name: unzip
   install: [unzip]
+
+# file & filesystem for systemd
+- name: iso-codes
+  nobuild: true
+  install: [iso-codes]
+- name: file
+- name: filesystem
+  install: [filesystem]
+
+# audit for pam
+- name: libcap-ng # for audit
+  install: [libcap-ng, libcap-ng-devel]
+- name: initscripts # for audit
+  install: [initscripts, initscripts-service]
+- name: audit
+  install: [audit, audit-libs, audit-libs-devel]
+
+# pam for libcap in systemd
+- name: libxml2 # for docbook5
+  install: [libxml2, libxml2-devel, python3-libxml2]
+- name: docbook5-schemas # for pam
+  nobuild: true
+  install: [docbook5-schemas]
+- name: docbook5-style-xsl # for pam
+  nobuild: true
+  install: [docbook5-style-xsl]
+
+- name: chrpath # libdb
+  install: [chrpath]
+- name: libdb # for pam
+  install: [libdb, libdb-devel]
+- name: elinks # for pam
+  install: [elinks]
+
+- name: pam # bug in 1.5.2
+  url: https://koji.fedoraproject.org/koji/buildinfo?buildID=2206209
+  install: [pam, pam-devel, pam-libs]
+
+# shadow-utils for tpm2-tss in systemd
+- name: libsemanage # for shadow-utils
+  install: [libsemanage, libsemanage-devel]
+- name: itstool # for shadow-utils
+  install: [itstool]
+- name: shadow-utils
+  install: [shadow-utils, shadow-utils-devel]
+  patch:
+    - sed -i 's/%caps(cap_set[ug]id=ep) //' %SPEC # rpm doesn't have libcap support yet
+
+# systemd
+- name: python-sphinx_rtd_theme # for libcbor
+  nobuild: true
+  install: [python3-sphinx_rtd_theme]
+- name: python-breathe # for libcbor
+  nobuild: true
+  install: [python3-breathe]
+- name: libcbor # for libfido2
+  install: [libcbor, libcbor-devel]
+- name: libfido2 # for systemd
+  install: [libfido2, libfido2-devel]
+
+- name: json-c # for tpm2-tss
+  install: [json-c, json-c-devel]
+- name: tpm2-tss # for systemd
+  install: [tpm2-tss, tpm2-tss-devel]
+
+- name: acl # for systemd
+  install: [acl, libacl, libacl-devel]
+- name: gperf # for systemd
+  install: [gperf]
+- name: libcap # for systemd
+  install: [libcap, libcap-devel]
+- name: libpwquality # for systemd
+  install: [libpwquality, libpwquality-devel]
+# - name: libseccomp # for systemd
+#   install: [libseccomp, libseccomp-devel]
+- name: kmod # for systemd
+  install: [kmod, kmod-devel, kmod-libs]
+- name: libidn2 # for systemd
+  install: [libidn2, libidn2-devel]
+- name: qrencode # for systemd
+  install: [qrencode, qrencode-devel, qrencode-libs]
+- name: libxkbcommon # for systemd
+  install: [libxkbcommon, libxkbcommon-devel]
+  patch:
+    - sed -i 's/-Denable-x11=true/-Denable-x11=false/' %SPEC # we don't have x11
+    - sed -i '/%files x11$/,/^$/d' %SPEC
+    - sed -i '/%files x11-devel$/,/^$/d' %SPEC
+    - sed -i '/xkbcli-interactive-x11/d' %SPEC
+
+- name: systemd
+  with: [bootstrap]
+  patch:
+    - sed -i '/-Dbpf-framework/d' %SPEC # we don't have bpf
+    - sed -i 's/-Dseccomp=true/-Dseccomp=false/' %SPEC # RISC-V 32 is not supported
+    - sed -i 's/-Dlibfido2=true/-Dlibfido2=false/' %SPEC # will cause bug
 
 # some tools
 - name: mpfr # for libmpc
@@ -413,6 +500,7 @@
 - name: libattr
 - name: libtirpc
 - name: libutempter
+- name: libarchive
 - name: lua
 - name: m4
 - name: make
@@ -422,39 +510,3 @@
 - name: sqlite
 - name: xxhash
 - name: zlib
-
-# - name: authselect
-
-# acl
-- name: acl
-  install: [acl, acl-devel]
-
-# audit
-- name: libcap-ng
-  install: [libcap-ng, libcap-ng-devel]
-- name: audit
-  install: [audit, audit-libs, audit-libs-devel]
-  patch:
-    - sed -i 's/--enable-systemd/--disable-systemd/' %SPEC # we don't have systemd
-    - sed -r -i '/auditd\.service$/d' %SPEC
-
-# pam
-- name: libxml2 # for docbook5
-  install: [libxml2, libxml2-devel]
-- name: docbook5-schemas # for pam
-  nobuild: true
-  install: [docbook5-schemas]
-- name: docbook5-style-xsl # for pam
-  nobuild: true
-  install: [docbook5-style-xsl]
-
-- name: elinks # for pam
-  install: [elinks]
-- name: chrpath
-  install: [chrpath]
-- name: libdb # for pam
-  install: [libdb, libdb-devel]
-
-- name: pam # bug in 1.5.2
-  url: https://koji.fedoraproject.org/koji/buildinfo?buildID=2206209
-  install: [pam, pam-devel]
