@@ -102,7 +102,6 @@
 - name: flex
   install: [flex, libfl, libfl-devel]
 
-# cmake
 - name: vim # for cmake
   nobuild: true
   install: [vim-filesystem]
@@ -126,7 +125,7 @@
 - name: perl-libintl-perl # for texinfo
   install: [perl-libintl-perl]
 - name: texinfo
-  install: [texinfo]
+  install: [texinfo, texinfo-tex]
 
 # gnutls for libmicrohttpd in elfutils
 - name: meson # for p11-kit
@@ -158,7 +157,6 @@
   install: [nettle, nettle-devel]
 - name: libunistring # for gnutls
   install: [libunistring, libunistring-devel]
-
 - name: gnutls
   without: [bootstrap, dane, fips, tpm2, gost, tests, srp, mingw]
   install: [gnutls, gnutls-devel]
@@ -316,7 +314,6 @@
   install: [libevent, libevent-devel]
 - name: cracklib # for openldap
   install: [cracklib, cracklib-devel]
-
 - name: openldap
   install: [openldap, openldap-devel]
 
@@ -375,7 +372,6 @@
   install: [tcl, tcl-devel]
 - name: lmdb # for krb5
   install: [lmdb, lmdb-devel, lmdb-libs]
-
 - name: krb5
   install: [krb5-libs, krb5-devel]
   patch:
@@ -396,6 +392,18 @@
   install: [zip]
 - name: unzip
   install: [unzip]
+
+# gtk-doc
+- name: python-pygments # for gtk-doc
+  nobuild: true
+  install: [python3-pygments]
+- name: python-setuptools
+  nobuild: true
+  install: [python3-setuptools]
+- name: gtk-doc
+  install: [gtk-doc]
+  pre:
+    - pip install lxml
 
 # file & filesystem for systemd
 - name: iso-codes
@@ -444,7 +452,7 @@
   patch:
     - sed -i 's/%caps(cap_set[ug]id=ep) //' %SPEC # rpm doesn't have libcap support yet
 
-# systemd
+# libfido2 for systemd
 - name: python-sphinx_rtd_theme # for libcbor
   nobuild: true
   install: [python3-sphinx_rtd_theme]
@@ -453,14 +461,14 @@
   install: [python3-breathe]
 - name: libcbor # for libfido2
   install: [libcbor, libcbor-devel]
-- name: libfido2 # for systemd
+- name: libfido2
   install: [libfido2, libfido2-devel]
 
+# systemd
 - name: json-c # for tpm2-tss
   install: [json-c, json-c-devel]
 - name: tpm2-tss # for systemd
   install: [tpm2-tss, tpm2-tss-devel]
-
 - name: acl # for systemd
   install: [acl, libacl, libacl-devel]
 - name: gperf # for systemd
@@ -484,19 +492,141 @@
     - sed -i '/%files x11$/,/^$/d' %SPEC
     - sed -i '/%files x11-devel$/,/^$/d' %SPEC
     - sed -i '/xkbcli-interactive-x11/d' %SPEC
-
 - name: systemd
   with: [bootstrap]
+  install: [systemd-devel, systemd-libs]
   patch:
     - sed -i '/-Dbpf-framework/d' %SPEC # we don't have bpf
     - sed -i 's/-Dseccomp=true/-Dseccomp=false/' %SPEC # RISC-V 32 is not supported
     - sed -i 's/-Dlibfido2=true/-Dlibfido2=false/' %SPEC # will cause bug
+
+# util-linux
+- name: rubygem-asciidoctor # for util-linux
+  nobuild: true
+  install: [rubygem-asciidoctor]
+- name: libutempter # for util-linux
+  install: [libutempter, libutempter-devel]
+- name: util-linux
+
+# dbus
+- name: autoconf-archive # for dbus
+  nobuild: true
+  install: [autoconf-archive]
+- name: python3-mallard-ducktype # for dbus
+  nobuild: true
+  install: [python3-mallard-ducktype]
+- name: expat # for dbus
+  install: [expat, expat-devel]
+- name: dbus
+  install: [dbus, dbus-devel]
+
+# ---------------------------------------------------------------------
+
+# freetype for texlive-base
+- name: brotli # for freetype
+  install: [brotli, brotli-devel, libbrotli]
+- name: pkgconf # for freetype
+  install: [pkgconf, libpkgconf, libpkgconf-devel]
+- name: freetype
+  with: [bootstrap]
+  install: [freetype, freetype-devel]
+
+# fontconfig for texlive-base
+- name: fonts-rpm-macros # for fontconfig
+  nobuild: true
+  install: [fonts-rpm-macros, fonts-srpm-macros]
+- name: fontconfig
+  install: [fontconfig, fontconfig-devel]
+
+# harfbuzz for texlive-base
+- name: cairo # for harfbuzz
+  install: [cairo, cairo-devel]
+  patch:
+    - sed -i 's/-Dxcb=enabled/-Dxcb=disabled/' %SPEC # we don't have xcb
+    - sed -i 's/-Dxlib=enabled/-Dxlib=disabled/' %SPEC # we don't have xlib
+    - sed -r -i '/cairo-(xcb|xlib)/d' %SPEC
+- name: icu # for harfbuzz. ln -sf icu-config-32 /usr/bin/icu-config-64
+  install: [icu, libicu, libicu-devel]
+- name: graphite2 # for harfbuzz
+  install: [graphite2, graphite2-devel]
+- name: gobject-introspection # for harfbuzz
+  install: [gobject-introspection, gobject-introspection-devel]
+  define:
+    __meson_auto_features: auto
+  patch:
+    - sed -i 's/-Ddoctool=enabled/-Ddoctool=disabled/' %SPEC # we don't have doctool
+- name: harfbuzz
+  install: [harfbuzz, harfbuzz-devel]
+
+# qt5-qtbase for texlive-base
+- name: qt5 # for qt5-qtbase
+  nobuild: true
+  install: [qt5-rpm-macros, qt5-srpm-macros]
+- name: desktop-file-utils # for qt5-qtbase
+  install: [desktop-file-utils]
+  define:
+    _emacs_sitelispdir: '%{_datadir}/emacs/site-lisp'
+    _emacs_sitestartdir: '%{_emacs_sitelispdir}/site-start.d'
+- name: qt5-qtbase
+
+# texlive for gawk
+- name: libpaper # for xpdf
+  install: [libpaper, libpaper-devel]
+- name: xpdf # for texlive-base
+  install: [xpdf, xpdf-devel]
+- name: teckit # for texlive-base
+  install: [teckit, teckit-devel]
+- name: gd # for texlive-base
+  install: [gd, gd-devel]
+- name: pixman # for texlive-base
+  install: [pixman, pixman-devel]
+- name: zziplib # for texlive-base
+  install: [zziplib, zziplib-devel]
+- name: texlive-base
+  with: [bootstrap]
+  install: [texlive-base]
+  patch:
+    - sed -i 's/ -Werror=format-security//' %SPEC
+    - sed -i '/^export XPDF/d' %SPEC
+
+# ---------------------------------------------------------------------
+
+# authselect
+- name: perl-MIME-Charset # for perl-Unicode-LineBreak
+  nobuild: true
+  install: [perl-MIME-Charset]
+- name: perl-Unicode-LineBreak # for po4a
+  install: [perl-Unicode-LineBreak]
+  patch:
+    - sed -i '/Remove bundled library$/,/^$/{//!d;}' %SPEC # we need bundled library
+- name: perl-Module-Build # for po4a
+  nobuild: true
+  install: [perl-Module-Build]
+- name: perl-Pod-Parser # for po4a
+  nobuild: true
+  install: [perl-Pod-Parser]
+- name: perl-YAML-Tiny # for po4a
+  nobuild: true
+  install: [perl-YAML-Tiny]
+- name: po4a # for authselect
+  install: [po4a]
+- name: asciidoc # for authselect
+  nobuild: true
+  install: [asciidoc]
+- name: authselect
 
 # some tools
 - name: mpfr # for libmpc
   install: [mpfr, mpfr-devel]
 - name: libmpc
 
+- name: coreutils
+  patch:
+    - sed -i '/%configure/i\export FORCE_UNSAFE_CONFIGURE=1\' %SPEC # root build
+- name: gawk
+  patch:
+    - sed -i '/^makeinfo/d' %SPEC # we don't have texinfo
+    - sed -i '/%make_build -C doc pdf/d' %SPEC
 - name: libattr
 - name: libtirpc
 - name: libutempter
