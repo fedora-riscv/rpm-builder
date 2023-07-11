@@ -453,7 +453,10 @@
 - name: harfbuzz
   install: [harfbuzz, harfbuzz-devel]
 
-# texlive-base for gawk
+# emacs for texlive-base
+- name: emacs
+
+# texlive-base
 - name: desktop-file-utils # for xpdf
   install: [desktop-file-utils]
   define:
@@ -481,6 +484,18 @@
     - sed -i 's/ -Werror=format-security//' %SPEC
     - sed -i 's/s390x/s390x riscv32/' %SPEC
 
+# gtk-doc
+- name: python-pygments # for gtk-doc
+  nobuild: true
+  install: [python3-pygments]
+- name: python-setuptools # for gtk-doc
+  nobuild: true
+  install: [python3-setuptools]
+- name: gtk-doc
+  install: [gtk-doc]
+  pre:
+    - pip install lxml
+
 # ---------------------------------------------------------------------
 
 # compress
@@ -496,18 +511,6 @@
   install: [zip]
 - name: unzip
   install: [unzip]
-
-# gtk-doc
-- name: python-pygments # for gtk-doc
-  nobuild: true
-  install: [python3-pygments]
-- name: python-setuptools # for gtk-doc
-  nobuild: true
-  install: [python3-setuptools]
-- name: gtk-doc
-  install: [gtk-doc]
-  pre:
-    - pip install lxml
 
 # file & filesystem for systemd
 - name: iso-codes
@@ -651,20 +654,25 @@
   install: [asciidoc]
 - name: authselect
 
-# ghostscript
-- name: libjpeg-turbo # for ghostscript
-  install: [libjpeg-turbo, libjpeg-turbo-devel]
-- name: ghostscript
-
 # some tools
 - name: mpfr # for libmpc
   install: [mpfr, mpfr-devel]
 - name: libmpc
 
+- name: lksctp-tools # for openssl
+  install: [lksctp-tools, lksctp-tools-devel]
+- name: openssl
+  patch:
+    - sed -i 's/${sslarch}/linux-generic32/' %SPEC
+
 - name: coreutils
   patch:
     - sed -i '/%configure/i\export FORCE_UNSAFE_CONFIGURE=1\' %SPEC # root build
 - name: gawk
+  patch:
+    - sed -i '/%make_build -C doc pdf$/,/^$/d' %SPEC # we don't have ghostscript
+    - sed -i '/%{_docdir}/,/^$/d' %SPEC
+- name: gettext
 - name: libattr
 - name: libtirpc
 - name: libutempter
@@ -672,10 +680,10 @@
 - name: lua
 - name: m4
 - name: make
-- name: openssl
+- name: patch
+- name: pcre
 - name: pkgconf
 - name: popt
-- name: patch
 - name: sed
 - name: sqlite
 - name: xxhash
