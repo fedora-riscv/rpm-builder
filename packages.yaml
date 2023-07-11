@@ -210,7 +210,7 @@
 # libselinux for glib
 - name: pcre2 # for libsepol
   url: https://koji.fedoraproject.org/koji/buildinfo?buildID=2122857
-  install: [pcre2, pcre2-devel]
+  install: [pcre2, pcre2-devel, pcre2-utf16]
 - name: libsepol # for libselinux
   install: [libsepol, libsepol-devel, libsepol-static]
 - name: dos2unix # for swig
@@ -379,6 +379,110 @@
 
 # ---------------------------------------------------------------------
 
+# freetype for fontconfig
+- name: brotli # for freetype
+  install: [brotli, brotli-devel, libbrotli]
+- name: pkgconf # for freetype
+  install: [pkgconf, libpkgconf, libpkgconf-devel]
+- name: freetype
+  with: [bootstrap]
+  install: [freetype, freetype-devel]
+
+# fontconfig for libX11
+- name: fonts-rpm-macros # for fontconfig
+  nobuild: true
+  install: [fonts-rpm-macros, fonts-srpm-macros]
+- name: fontconfig
+  install: [fontconfig, fontconfig-devel]
+
+# libX11 for texlive-base
+- name: xorg-x11-util-macros # for libXau
+  nobuild: true
+  install: [xorg-x11-util-macros]
+- name: xorg-x11-proto-devel # for libXau
+  nobuild: true
+  install: [xorg-x11-proto-devel]
+- name: libXau # for libxcb
+  install: [libXau, libXau-devel]
+- name: xcb-proto # for libxcb
+  nobuild: true
+  install: [xcb-proto]
+- name: libxcb # for libX11
+  install: [libxcb, libxcb-devel]
+- name: xorg-x11-xtrans-devel # for libX11
+  nobuild: true
+  install: [xorg-x11-xtrans-devel]
+- name: libX11
+  install: [libX11, libX11-devel]
+
+# libXaw for texlive-base
+- name: libICE # for libSM
+  install: [libICE, libICE-devel]
+- name: libSM # for libXt
+  install: [libSM, libSM-devel]
+- name: libXt # for libXaw
+  install: [libXt, libXt-devel]
+
+- name: ncompress # for libXpm
+  install: [ncompress]
+- name: libXpm # for libXaw
+  install: [libXpm, libXpm-devel]
+
+- name: libXmu # for libXaw
+  install: [libXmu, libXmu-devel]
+- name: libXaw # for texlive-base
+  install: [libXaw, libXaw-devel]
+
+# harfbuzz for texlive-base
+- name: libXext # for cairo
+  install: [libXext, libXext-devel]
+- name: libXrender # for cairo
+  install: [libXrender, libXrender-devel]
+- name: cairo # for harfbuzz
+  install: [cairo, cairo-devel]
+- name: icu # for harfbuzz. ln -sf icu-config-32 /usr/bin/icu-config-64
+  install: [icu, libicu, libicu-devel]
+- name: graphite2 # for harfbuzz
+  install: [graphite2, graphite2-devel]
+- name: gobject-introspection # for harfbuzz
+  install: [gobject-introspection, gobject-introspection-devel]
+  define:
+    __meson_auto_features: auto
+  patch:
+    - sed -i 's/-Ddoctool=enabled/-Ddoctool=disabled/' %SPEC # we don't have doctool
+- name: harfbuzz
+  install: [harfbuzz, harfbuzz-devel]
+
+# texlive-base for gawk
+- name: desktop-file-utils # for xpdf
+  install: [desktop-file-utils]
+  define:
+    _emacs_sitelispdir: '%{_datadir}/emacs/site-lisp'
+    _emacs_sitestartdir: '%{_emacs_sitelispdir}/site-start.d'
+- name: libpaper # for xpdf
+  install: [libpaper, libpaper-devel]
+- name: xpdf # for texlive-base
+  url: https://koji.fedoraproject.org/koji/buildinfo?buildID=2217462 # bug in f38
+  install: [xpdf-devel, xpdf-libs]
+  define:
+    fedora:
+- name: teckit # for texlive-base
+  install: [teckit, teckit-devel]
+- name: gd # for texlive-base
+  install: [gd, gd-devel]
+- name: pixman # for texlive-base
+  install: [pixman, pixman-devel]
+- name: zziplib # for texlive-base
+  install: [zziplib, zziplib-devel]
+- name: texlive-base
+  with: [bootstrap]
+  install: [texlive-base, texlive-tex]
+  patch:
+    - sed -i 's/ -Werror=format-security//' %SPEC
+    - sed -i 's/s390x/s390x riscv32/' %SPEC
+
+# ---------------------------------------------------------------------
+
 # compress
 - name: tar
   patch:
@@ -397,7 +501,7 @@
 - name: python-pygments # for gtk-doc
   nobuild: true
   install: [python3-pygments]
-- name: python-setuptools
+- name: python-setuptools # for gtk-doc
   nobuild: true
   install: [python3-setuptools]
 - name: gtk-doc
@@ -487,14 +591,9 @@
   install: [qrencode, qrencode-devel, qrencode-libs]
 - name: libxkbcommon # for systemd
   install: [libxkbcommon, libxkbcommon-devel]
-  patch:
-    - sed -i 's/-Denable-x11=true/-Denable-x11=false/' %SPEC # we don't have x11
-    - sed -i '/%files x11$/,/^$/d' %SPEC
-    - sed -i '/%files x11-devel$/,/^$/d' %SPEC
-    - sed -i '/xkbcli-interactive-x11/d' %SPEC
 - name: systemd
   with: [bootstrap]
-  install: [systemd-devel, systemd-libs]
+  install: [systemd, systemd-devel, systemd-libs]
   patch:
     - sed -i '/-Dbpf-framework/d' %SPEC # we don't have bpf
     - sed -i 's/-Dseccomp=true/-Dseccomp=false/' %SPEC # RISC-V 32 is not supported
@@ -509,6 +608,12 @@
 - name: util-linux
 
 # dbus
+- name: yelp-xsl # for yelp-tools
+  nobuild: true
+  install: [yelp-xsl]
+- name: yelp-tools # for dbus
+  nobuild: true
+  install: [yelp-tools]
 - name: autoconf-archive # for dbus
   nobuild: true
   install: [autoconf-archive]
@@ -518,76 +623,7 @@
 - name: expat # for dbus
   install: [expat, expat-devel]
 - name: dbus
-  install: [dbus, dbus-devel]
-
-# ---------------------------------------------------------------------
-
-# freetype for texlive-base
-- name: brotli # for freetype
-  install: [brotli, brotli-devel, libbrotli]
-- name: pkgconf # for freetype
-  install: [pkgconf, libpkgconf, libpkgconf-devel]
-- name: freetype
-  with: [bootstrap]
-  install: [freetype, freetype-devel]
-
-# fontconfig for texlive-base
-- name: fonts-rpm-macros # for fontconfig
-  nobuild: true
-  install: [fonts-rpm-macros, fonts-srpm-macros]
-- name: fontconfig
-  install: [fontconfig, fontconfig-devel]
-
-# harfbuzz for texlive-base
-- name: cairo # for harfbuzz
-  install: [cairo, cairo-devel]
-  patch:
-    - sed -i 's/-Dxcb=enabled/-Dxcb=disabled/' %SPEC # we don't have xcb
-    - sed -i 's/-Dxlib=enabled/-Dxlib=disabled/' %SPEC # we don't have xlib
-    - sed -r -i '/cairo-(xcb|xlib)/d' %SPEC
-- name: icu # for harfbuzz. ln -sf icu-config-32 /usr/bin/icu-config-64
-  install: [icu, libicu, libicu-devel]
-- name: graphite2 # for harfbuzz
-  install: [graphite2, graphite2-devel]
-- name: gobject-introspection # for harfbuzz
-  install: [gobject-introspection, gobject-introspection-devel]
-  define:
-    __meson_auto_features: auto
-  patch:
-    - sed -i 's/-Ddoctool=enabled/-Ddoctool=disabled/' %SPEC # we don't have doctool
-- name: harfbuzz
-  install: [harfbuzz, harfbuzz-devel]
-
-# qt5-qtbase for texlive-base
-- name: qt5 # for qt5-qtbase
-  nobuild: true
-  install: [qt5-rpm-macros, qt5-srpm-macros]
-- name: desktop-file-utils # for qt5-qtbase
-  install: [desktop-file-utils]
-  define:
-    _emacs_sitelispdir: '%{_datadir}/emacs/site-lisp'
-    _emacs_sitestartdir: '%{_emacs_sitelispdir}/site-start.d'
-- name: qt5-qtbase
-
-# texlive for gawk
-- name: libpaper # for xpdf
-  install: [libpaper, libpaper-devel]
-- name: xpdf # for texlive-base
-  install: [xpdf, xpdf-devel]
-- name: teckit # for texlive-base
-  install: [teckit, teckit-devel]
-- name: gd # for texlive-base
-  install: [gd, gd-devel]
-- name: pixman # for texlive-base
-  install: [pixman, pixman-devel]
-- name: zziplib # for texlive-base
-  install: [zziplib, zziplib-devel]
-- name: texlive-base
-  with: [bootstrap]
-  install: [texlive-base]
-  patch:
-    - sed -i 's/ -Werror=format-security//' %SPEC
-    - sed -i '/^export XPDF/d' %SPEC
+  install: [dbus, dbus-devel, dbus-libs]
 
 # ---------------------------------------------------------------------
 
@@ -615,6 +651,11 @@
   install: [asciidoc]
 - name: authselect
 
+# ghostscript
+- name: libjpeg-turbo # for ghostscript
+  install: [libjpeg-turbo, libjpeg-turbo-devel]
+- name: ghostscript
+
 # some tools
 - name: mpfr # for libmpc
   install: [mpfr, mpfr-devel]
@@ -624,9 +665,6 @@
   patch:
     - sed -i '/%configure/i\export FORCE_UNSAFE_CONFIGURE=1\' %SPEC # root build
 - name: gawk
-  patch:
-    - sed -i '/^makeinfo/d' %SPEC # we don't have texinfo
-    - sed -i '/%make_build -C doc pdf/d' %SPEC
 - name: libattr
 - name: libtirpc
 - name: libutempter
@@ -634,9 +672,11 @@
 - name: lua
 - name: m4
 - name: make
+- name: openssl
 - name: pkgconf
 - name: popt
 - name: patch
+- name: sed
 - name: sqlite
 - name: xxhash
 - name: zlib
