@@ -453,9 +453,6 @@
 - name: harfbuzz
   install: [harfbuzz, harfbuzz-devel]
 
-# emacs for texlive-base
-- name: emacs
-
 # texlive-base
 - name: desktop-file-utils # for xpdf
   install: [desktop-file-utils]
@@ -481,8 +478,8 @@
   with: [bootstrap]
   install: [texlive-base, texlive-tex]
   patch:
-    - sed -i 's/ -Werror=format-security//' %SPEC
-    - sed -i 's/s390x/s390x riscv32/' %SPEC
+    - sed -i 's/ -Werror=format-security//' %SPEC # maybe a bug
+    - sed -i 's/s390x/s390x riscv32/' %SPEC # RISC-V 32 is not supported
 
 # gtk-doc
 - name: python-pygments # for gtk-doc
@@ -654,17 +651,55 @@
   install: [asciidoc]
 - name: authselect
 
-# some tools
+# emacs
+- name: giflib # for emacs
+  install: [giflib, giflib-devel]
+  patch:
+    - sed -r -i '/%\{?mingw/d' %SPEC # we don't have mingw
+- name: libtiff # for emacs
+  install: [libtiff, libtiff-devel]
+- name: libjpeg-turbo # for emacs
+  install: [libjpeg-turbo, libjpeg-turbo-devel]
+- name: jansson # for emacs
+  install: [jansson, jansson-devel]
+- name: emacs
+
+# libmpc
 - name: mpfr # for libmpc
   install: [mpfr, mpfr-devel]
 - name: libmpc
 
+# openssl
 - name: lksctp-tools # for openssl
   install: [lksctp-tools, lksctp-tools-devel]
 - name: openssl
   patch:
     - sed -i 's/${sslarch}/linux-generic32/' %SPEC
 
+# nghttp2
+- name: c-ares # for nghttp2
+  install: [c-ares, c-ares-devel]
+- name: nghttp2
+
+# libssh
+- name: cmocka # for libssh
+  install: [libcmocka, libcmocka-devel]
+- name: socket_wrapper # for libssh
+  install: [socket_wrapper, socket_wrapper-devel]
+- name: nss_wrapper # for libssh
+  install: [nss_wrapper, nss_wrapper-devel]
+- name: uid_wrapper # for libssh
+  install: [uid_wrapper, uid_wrapper-devel]
+- name: priv_wrapper # for libssh
+  install: [priv_wrapper, priv_wrapper-devel]
+- name: libssh
+
+# libxcrypt
+- name: libkcapi # for libxcrypt. need kernel crypto api support
+  install: [libkcapi, libkcapi-fipscheck]
+- name: libxcrypt
+
+# some tools
 - name: coreutils
   patch:
     - sed -i '/%configure/i\export FORCE_UNSAFE_CONFIGURE=1\' %SPEC # root build
@@ -672,17 +707,22 @@
   patch:
     - sed -i '/%make_build -C doc pdf$/,/^$/d' %SPEC # we don't have ghostscript
     - sed -i '/%{_docdir}/,/^$/d' %SPEC
+- name: pcre
+  url: https://koji.fedoraproject.org/koji/buildinfo?buildID=2122856
+  patch:
+    - sed -i 's/s390x/s390x riscv32/' %SPEC # RISC-V 32 is not supported
 - name: gettext
 - name: libattr
+- name: libarchive
 - name: libtirpc
 - name: libutempter
-- name: libarchive
+- name: libsemanage
 - name: lua
 - name: m4
 - name: make
 - name: patch
-- name: pcre
 - name: pkgconf
+- name: perl
 - name: popt
 - name: sed
 - name: sqlite
