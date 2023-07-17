@@ -54,7 +54,7 @@ if __name__ == "__main__":
                 rpms = getbuild(build)
                 if len(rpms):
                     break
-
+        
         # pre
         if "pre" in package:
             for pre in package["pre"]:
@@ -74,9 +74,11 @@ if __name__ == "__main__":
             args.extend(map(lambda x: f"--define={x[0]} {x[1] if x[1] != None else '%nil'}", package["define"].items()))
         
         if "nobuild" in package:
-            noarch = filter(lambda x: x.endswith(".noarch.rpm"), rpms)
-            for url in noarch:
-                subprocess.run(f"curl --create-dirs --output-dir {builddir}/RPMS/noarch -OL {url}", shell=True)
+            rpms = filter(lambda x: x.endswith(".noarch.rpm"), rpms)
+            for rpm in rpms:
+                install = any([re.search(rf"/{install}-.*", rpm) for install in package["install"]])
+                if install or len(package["install"]) == 0:
+                    subprocess.run(f"curl --create-dirs --output-dir {builddir}/RPMS/noarch -OL {rpm}", shell=True)
         else:
             # download and unpack
             srpm = f"srpm/{name}.src.rpm"

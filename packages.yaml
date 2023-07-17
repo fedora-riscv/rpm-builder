@@ -474,9 +474,13 @@
   install: [pixman, pixman-devel]
 - name: zziplib # for texlive-base
   install: [zziplib, zziplib-devel]
+- name: texlive
+  nobuild: true
+  install: [texlive-tex-ini-files, texlive-plain, texlive-etex, texlive-modes]
 - name: texlive-base
   with: [bootstrap]
-  install: [texlive-base, texlive-tex]
+  install: [texlive-base, texlive-lib, texlive-texlive-scripts-svn, texlive-texlive.infra
+            texlive-kpathsea, texlive-tex, texlive-metafont, texlive-pdftex]
   patch:
     - sed -i 's/ -Werror=format-security//' %SPEC # maybe a bug
     - sed -i 's/s390x/s390x riscv32/' %SPEC # RISC-V 32 is not supported
@@ -651,6 +655,11 @@
   install: [asciidoc]
 - name: authselect
 
+# dwz
+- name: xxhash # for dwz
+  install: [xxhash, xxhash-devel, xxhash-libs]
+- name: dwz
+
 # emacs
 - name: giflib # for emacs
   install: [giflib, giflib-devel]
@@ -664,10 +673,78 @@
   install: [jansson, jansson-devel]
 - name: emacs
 
-# libmpc
-- name: mpfr # for libmpc
+# guile22 for gdb
+- name: gc # for guile22
+  install: [gc, gc-devel]
+- name: guile22
+  install: [guile22, guile22-devel]
+
+# gdb
+- name: babeltrace # for gdb
+  install: [libbabeltrace, libbabeltrace-devel]
+- name: mpfr # for gdb
   install: [mpfr, mpfr-devel]
-- name: libmpc
+- name: gdb
+  patch:
+    - sed -i 's/ifarch %{arm}/ifarch %{arm} riscv32/' %SPEC # RISC-V 32 is not supported
+    - sed -i '/%files doc/,/^$/d' %SPEC # we can't use texlive
+    - sed -i '/%make_build \\/,/^ $/d' %SPEC
+
+# gcc
+- name: libmpc # for gcc
+  install: [libmpc, libmpc-devel]
+- name: gcc
+
+# libnsl2 for glibc
+- name: libtirpc # for libnsl2
+  install: [libtirpc, libtirpc-devel]
+- name: libnsl2
+  install: [libnsl2, libnsl2-devel]
+
+# libpsl
+- name: publicsuffix-list # for libpsl
+  nobuild: true
+  install: [publicsuffix-list]
+- name: libpsl
+
+# libssh for curl
+- name: cmocka # for libssh
+  install: [libcmocka, libcmocka-devel]
+- name: socket_wrapper # for libssh
+  install: [socket_wrapper]
+- name: nss_wrapper # for libssh
+  install: [nss_wrapper]
+- name: pam_wrapper # for libssh
+  install: [pam_wrapper]
+- name: uid_wrapper # for libssh
+  install: [uid_wrapper]
+  patch:
+    - sed -i 's/-DUNIT_TESTING=ON/-DUNIT_TESTING=OFF/' %SPEC # in RISC-V 32, unit test will fail
+- name: priv_wrapper # for libssh
+  install: [priv_wrapper]
+- name: softhsm # for libssh
+  url: https://koji.fedoraproject.org/koji/buildinfo?buildID=2133430
+  install: [softhsm]
+- name: openssh # for libssh
+  url: https://koji.fedoraproject.org/koji/buildinfo?buildID=2186475
+  install: [openssh, openssh-clients, openssh-server]
+  define:
+    noselinux: 1 # sandbox not supported on RISC-V 32
+    skip_gnome_askpass: 1 # we don't have gnome
+  patch:
+    - sed -i 's/%global libedit 1/%global libedit 0/' %SPEC # we don't have libedit
+- name: libssh
+  install: [libssh, libssh-devel]
+
+# libxcrypt
+- name: libkcapi # for libxcrypt. need kernel crypto api support
+  install: [libkcapi, libkcapi-fipscheck]
+- name: libxcrypt
+
+# nghttp2
+- name: c-ares # for nghttp2
+  install: [c-ares, c-ares-devel]
+- name: nghttp2
 
 # openssl
 - name: lksctp-tools # for openssl
@@ -676,55 +753,45 @@
   patch:
     - sed -i 's/${sslarch}/linux-generic32/' %SPEC
 
-# nghttp2
-- name: c-ares # for nghttp2
-  install: [c-ares, c-ares-devel]
-- name: nghttp2
-
-# libssh
-- name: cmocka # for libssh
-  install: [libcmocka, libcmocka-devel]
-- name: socket_wrapper # for libssh
-  install: [socket_wrapper, socket_wrapper-devel]
-- name: nss_wrapper # for libssh
-  install: [nss_wrapper, nss_wrapper-devel]
-- name: uid_wrapper # for libssh
-  install: [uid_wrapper, uid_wrapper-devel]
-- name: priv_wrapper # for libssh
-  install: [priv_wrapper, priv_wrapper-devel]
-- name: libssh
-
-# libxcrypt
-- name: libkcapi # for libxcrypt. need kernel crypto api support
-  install: [libkcapi, libkcapi-fipscheck]
-- name: libxcrypt
-
 # some tools
 - name: coreutils
   patch:
     - sed -i '/%configure/i\export FORCE_UNSAFE_CONFIGURE=1\' %SPEC # root build
 - name: gawk
   patch:
-    - sed -i '/%make_build -C doc pdf$/,/^$/d' %SPEC # we don't have ghostscript
+    - sed -i '/%make_build -C doc pdf$/,/^$/d' %SPEC # we can't use texlive
     - sed -i '/%{_docdir}/,/^$/d' %SPEC
 - name: pcre
   url: https://koji.fedoraproject.org/koji/buildinfo?buildID=2122856
   patch:
     - sed -i 's/s390x/s390x riscv32/' %SPEC # RISC-V 32 is not supported
+- name: libeconf
+  patch:
+    - sed -i 's/%cmake$/%cmake -DBUILD_DOCUMENTATION=OFF/' %SPEC # we don't have graphviz
 - name: gettext
+  patch:
+    - sed -r -i '/(_emacs_sitelispdir|_emacs_sitestartdir)/d' %SPEC # we don't have emacs
+- name: glibc
+  patch:
+    - sed -i 's/..\/configure/..\/configure libc_cv_slibdir=\/lib /' %SPEC # RISC-V 32 will install to /usr/lib32/ilp32d, but truncate want to /usr/lib
+    - sed -i '/Prepare the libnsl-related file lists./,/^$/d' %SPEC # in RISC-V 32, libnsl will not be built
+    - sed -i '/%files -f libnsl.filelist -n libnsl/,/^$/d' %SPEC
+- name: perl
+  without: [gdbm]
+  define:
+    perl_bootstrap: 1
+
+- name: curl
 - name: libattr
 - name: libarchive
-- name: libtirpc
-- name: libutempter
 - name: libsemanage
+- name: libutempter
 - name: lua
 - name: m4
 - name: make
 - name: patch
 - name: pkgconf
-- name: perl
 - name: popt
 - name: sed
 - name: sqlite
-- name: xxhash
 - name: zlib
