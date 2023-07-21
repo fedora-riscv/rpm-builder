@@ -252,7 +252,7 @@
     - sed -i '/\/gtk-doc\/$/d' %SPEC
 
 # ---------------------------------------------------------------------
-  
+
 # ruby
 - name: libyaml # for ruby
   install: [libyaml, libyaml-devel]
@@ -694,6 +694,9 @@
 - name: libmpc # for gcc
   install: [libmpc, libmpc-devel]
 - name: gcc
+  patch:
+    - sed -i 's/%global build_libatomic 0/%global build_libatomic 1/' %SPEC # we need libatomic for systemd
+    - sed -i 's/%ifarch ppc64le %{mips} s390x/%ifarch ppc64le %{mips} s390x riscv32/' %SPEC
 
 # libnsl2 for glibc
 - name: libtirpc # for libnsl2
