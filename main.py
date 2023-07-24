@@ -74,11 +74,12 @@ if __name__ == "__main__":
             args.extend(map(lambda x: f"--define={x[0]} {x[1] if x[1] != None else '%nil'}", package["define"].items()))
         
         if "nobuild" in package:
-            rpms = filter(lambda x: x.endswith(".noarch.rpm"), rpms)
-            for rpm in rpms:
-                install = any([re.search(rf"/{install}-.*", rpm) for install in package["install"]])
-                if install or len(package["install"]) == 0:
+            for install in package["install"]:
+                for rpm in rpms:
+                    if not re.search(rf"/{install}-.*\.noarch\.rpm", rpm):
+                        continue
                     subprocess.run(f"curl --create-dirs --output-dir {builddir}/RPMS/noarch -OL {rpm}", shell=True)
+                    break
         else:
             # download and unpack
             srpm = f"srpm/{name}.src.rpm"
@@ -91,6 +92,7 @@ if __name__ == "__main__":
             if "patch" in package:
                 for patch in package["patch"]:
                     print(f"Running patch script")
+                    print(patch.replace(r"%SPEC", spec))
                     subprocess.run(patch.replace(r"%SPEC", spec), shell=True)
             print(f"Building {name} with args: {args}")
             subprocess.run(["rpmbuild", rootdefine, *args, "-ba", spec])

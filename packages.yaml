@@ -756,6 +756,36 @@
   patch:
     - sed -i 's/${sslarch}/linux-generic32/' %SPEC
 
+# python
+- name: shared-mime-info # for gdk-pixbuf2
+  install: [shared-mime-info]
+- name: gdk-pixbuf2 # for libappstream-glib
+  install: [gdk-pixbuf2, gdk-pixbuf2-devel]
+  patch:
+    - sed -i 's/-Dgtk_doc=true/-Dgtk_doc=false/' %SPEC # we don't need doc
+    - sed -i '/\/doc\//d' %SPEC
+- name: json-glib # for libappstream-glib
+  install: [json-glib, json-glib-devel]
+  patch:
+    - sed -i 's/-Dgtk_doc=enabled/-Dgtk_doc=disabled/' %SPEC # we don't need doc
+    - sed -i '/\/doc\//d' %SPEC
+- name: libappstream-glib # for python
+  install: [libappstream-glib, libappstream-glib-devel]
+  patch:
+    - sed -i 's/%meson \\/%meson -Dfonts=false \\/' %SPEC
+    - sed -i 's/-Dstemmer=true/-Dstemmer=false/' %SPEC # we don't have stemmer
+    - sed -i '/libasb_plugin_font/d' %SPEC
+- name: mpdecimal # for python
+  install: [mpdecimal, mpdecimal-devel]
+- name: tk # for python
+  install: [tk, tk-devel]
+- name: python3.12
+  url: https://koji.fedoraproject.org/koji/buildinfo?buildID=2231164
+  with: [bootstrap]
+  without: [gdbm]
+  define:
+    _unpackaged_files_terminate_build:
+
 # some tools
 - name: coreutils
   patch:
@@ -779,10 +809,17 @@
     - sed -i 's/..\/configure/..\/configure libc_cv_slibdir=\/lib /' %SPEC # RISC-V 32 will install to /usr/lib32/ilp32d, but truncate want to /usr/lib
     - sed -i '/Prepare the libnsl-related file lists./,/^$/d' %SPEC # in RISC-V 32, libnsl will not be built
     - sed -i '/%files -f libnsl.filelist -n libnsl/,/^$/d' %SPEC
+    - curl http://openkoji.iscas.ac.cn/repos/fc38-rv32/patch/glibc.patch -o `dirname %SPEC`/../SOURCES/glibc-riscv32.patch # in RISC-V 32, time64 does not work
+    - "sed -i '/Patch4/i\\Patch3: glibc-riscv32.patch\\' %SPEC"
 - name: perl
   without: [gdbm]
   define:
     perl_bootstrap: 1
+- name: rpm
+  without: [sequoia, libimaevm, fsverity]
+  patch:
+    - curl http://openkoji.iscas.ac.cn/repos/fc38-rv32/patch/rpm.patch -o `dirname %SPEC`/../SOURCES/rpm-riscv32.patch # add support for RISC-V 32
+    - sed -i '/%patchlist/a\rpm-riscv32.patch\' %SPEC
 
 - name: curl
 - name: libattr
