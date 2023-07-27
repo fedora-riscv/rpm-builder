@@ -1,0 +1,151 @@
+# ding-libs for samba and sssd
+- name: libtalloc # for libldb
+  install: [libtalloc, libtalloc-devel, python3-talloc, python3-talloc-devel]
+- name: libtdb # for libldb
+  install: [libtdb, libtdb-devel, python3-tdb]
+- name: libtevent # for libldb
+  install: [libtevent, libtevent-devel, python3-tevent]
+- name: libldb
+  install: [libldb, libldb-devel, python3-ldb, python3-ldb-devel, python-ldb-devel-common]
+- name: ding-libs
+  install: [libdhash, libdhash-devel, libbasicobjects, libbasicobjects-devel,
+            libref_array, libref_array-devel, libcollection, libcollection-devel,
+            libpath_utils, libpath_utils-devel, libini_config, libini_config-devel]
+
+# samba for cifs-utils and sssd
+- name: libdaemon # for avahi
+  install: [libdaemon, libdaemon-devel]
+- name: avahi # for cups
+  url: https://koji.fedoraproject.org/koji/buildinfo?buildID=2185530 # bug in avahi-0.8-20
+  with: [bootstrap]
+  install: [avahi, avahi-devel, avahi-libs]
+  define:
+    fedora: # we don't have qt
+- name: libusb1 # for cups
+  install: [libusb1, libusb1-devel]
+  patch:
+    - sed -i '/umockdev$/d' %SPEC
+- name: cups # for samba
+  install: [cups, cups-devel, cups-libs]
+- name: perl-Parse-Yapp # for samba
+  nobuild: true
+  install: [perl-Parse-Yapp]
+- name: rpcsvc-proto # for samba
+  install: [rpcgen]
+- name: samba
+  install: [samba-devel, samba-client-libs, samba-winbind
+            libwbclient, libwbclient-devel, libsmbclient, libsmbclient-devel]
+  without: [winexe]
+  define:
+    fedora: # we don't have mold linker
+    _unpackaged_files_terminate_build:
+
+# lvm2 for nfs-utils and sssd
+- name: python-pyudev # for lvm2
+  nobuild: true
+  install: [python3-pyudev]
+- name: dbus-python # for lvm2
+  install: [python3-dbus]
+- name: libedit # for lvm2
+  install: [libedit, libedit-devel]
+- name: libaio # for lvm2
+  install: [libaio, libaio-devel]
+- name: sanlock # for lvm2
+  install: [sanlock, sanlock-devel]
+- name: lvm2
+  install: [device-mapper-devel, device-mapper-libs]
+  patch:
+    - sed -i 's/%global enable_lvmlockd 1/%global enable_lvmlockd 0/' %SPEC
+
+# sssd
+- name: keyutils # for cifs-utils
+  install: [keyutils-libs, keyutils-libs-devel]
+- name: cifs-utils # for sssd
+  install: [cifs-utils, cifs-utils-devel]
+
+- name: libmaxminddb # for bind
+  install: [libmaxminddb, libmaxminddb-devel]
+- name: libuv # for bind
+  install: [libuv, libuv-devel]
+- name: bind # for sssd. need libnghttp2
+  without: [DNSTAP, DLZ, DOCPDF]
+  install: [bind-utils, bind-libs]
+
+- name: nfs-utils # for sssd
+  install: [libnfsidmap, libnfsidmap-devel]
+  patch:
+    - sed -i 's/--enable-junction/--disable-junction/' %SPEC # bug in RISC-V 32
+    - sed -i '/nfsref$/d' %SPEC
+- name: jose # for sssd
+  install: [libjose, libjose-devel]
+
+- name: sssd
+
+# ---------------------------------------------------------------------
+
+# cryptsetup
+- name: libargon2 # for cryptsetup
+  install: [libargon2, libargon2-devel]
+- name: cryptsetup
+
+# iptables for firewalld
+- name: libmnl # for libnftnl
+  install: [libmnl, libmnl-devel]
+  define:
+    _unpackaged_files_terminate_build:
+- name: libnftnl # for iptables
+  install: [libnftnl, libnftnl-devel]
+- name: libpcap # for iptables
+  install: [libpcap, libpcap-devel]
+- name: libnfnetlink # for iptables
+  install: [libnfnetlink, libnfnetlink-devel]
+- name: iptables
+
+# librepo
+- name: zchunk # for librepo
+  install: [zchunk, zchunk-devel, zchunk-libs]
+- name: check # for librepo
+  install: [check, check-devel]
+  define:
+    fedora:
+- name: gpgme # for librepo
+  install: [gpgme, gpgme-devel]
+  patch:
+    - sed -i 's/%bcond qt 1/%bcond qt 0/' %SPEC
+    - sed -r -i 's/%bcond qt5 .+/%bcond qt5 0/' %SPEC
+    - sed -i 's/%bcond qt6 1/%bcond qt6 0/' %SPEC
+- name: librepo
+
+# rdma-core
+- name: libnl3 # for rdma-core
+  install: [libnl3, libnl3-devel]
+- name: rdma-core
+  define:
+    _without_pyverbs: 1
+
+# some packages
+- name: dtc
+  define:
+    fedora:
+- name: ipcalc
+  patch:
+    - sed -i '/man1/d' %SPEC
+- name: libsecret
+  patch:
+    - sed -i 's/%meson$/%meson -Dvapi=false -Dgtk_doc=false/' %SPEC # we don't have valgrind
+    - sed -i '/%{_datadir}\/vala$/,/^$/d' %SPEC
+- name: policycoreutils
+  url: https://koji.fedoraproject.org/koji/buildinfo?buildID=2249744 # bug in fc38
+- name: python-pytest-regressions
+  pre:
+    - pip install pytest
+- name: vim
+  without: [gui]
+
+- name: dracut
+- name: hostname
+- name: ima-evm-utils
+- name: iproute
+- name: ipset
+- name: iputils
+- name: libbpf

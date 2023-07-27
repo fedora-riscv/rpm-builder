@@ -1,0 +1,833 @@
+# macros in order fedora srpm compile
+- name: redhat-rpm-config # we need to compile annobin
+  nobuild: true
+  install: [redhat-rpm-config]
+  post:
+    - ln -sf redhat /usr/lib/rpm/$(rpm --eval '%_host_vendor')
+    - sed -i 's/^%_enable_debug_packages/#%_enable_debug_packages/' /usr/lib/rpm/redhat/macros
+    - sed -i 's/^%__brp_check_rpaths/#%__brp_check_rpaths/' /usr/lib/rpm/redhat/macros
+    - echo gcc > $(gcc --print-file-name=)/rpmver
+- name: multilib-rpm-config
+  nobuild: true
+  install: [multilib-rpm-config]
+- name: fedora-release
+  nobuild: true
+  url: https://koji.fedoraproject.org/koji/buildinfo?buildID=2207533
+  install: [fedora-release-common]
+- name: systemd
+  nobuild: true
+  install: [systemd-rpm-macros]
+- name: rust-packaging
+  nobuild: true
+  install: [rust-srpm-macros]
+- name: python-rpm-macros
+  nobuild: true
+  install: [python-rpm-macros, python3-rpm-macros, python-srpm-macros]
+- name: python-rpmautospec
+  nobuild: true
+  install: [rpmautospec-rpm-macros]
+- name: python-wheel # for pyproject-rpm-macros
+  nobuild: true
+  install: [python3-wheel]
+- name: pyproject-rpm-macros
+  nobuild: true
+  install: [pyproject-rpm-macros]
+- name: perl
+  nobuild: true
+  install: [perl-macros]
+- name: perl-srpm-macros
+  nobuild: true
+  install: [perl-srpm-macros]
+- name: perl-Fedora-VSP # for perl on fedora
+  nobuild: true
+  install: [perl-Fedora-VSP]
+
+# autotool
+- name: autoconf
+  nobuild: true
+  install: [autoconf]
+- name: automake
+  nobuild: true
+  install: [automake]
+
+# nano
+- name: ncurses
+  install: [ncurses, ncurses-devel, ncurses-libs, ncurses-base]
+  define:
+    gpgverify: "#"
+- name: nano
+  install: [nano]
+  define:
+    gpgverify: "#"
+
+# annobin
+- name: libtool # for gmp
+  undefine: [_annotated_build]
+  install: [libtool, libtool-ltdl, libtool-ltdl-devel]
+- name: gmp # for annobin
+  without: [fips]
+  undefine: [_annotated_build]
+  install: [gmp, gmp-devel]
+- name: annobin
+  without: [tests, annocheck, clangplugin, llvmplugin]
+  install: [annobin-plugin-gcc]
+  define:
+    _unpackaged_files_terminate_build:
+
+# gpg
+- name: libassuan # for libksba
+  install: [libassuan, libassuan-devel]
+- name: libksba # for npth
+  with: [bootstrap]
+  install: [libksba, libksba-devel]
+- name: npth # for gnupg2
+  install: [npth, npth-devel]
+  define:
+    gpgverify: "#"
+- name: gnupg2
+  with: [bootstrap]
+  install: [gnupg2, gnupg2-smime]
+  patch:
+    - sed -r -i '/dirmngr(-client)?$/d' %SPEC # we don't have gnutls
+
+# ---------------------------------------------------------------------
+
+# build tools
+- name: readline
+  install: [readline, readline-devel]
+- name: bison
+  install: [bison]
+- name: flex
+  install: [flex, libfl, libfl-devel]
+
+- name: vim # for cmake
+  nobuild: true
+  install: [vim-filesystem]
+- name: cmake
+  with: [bootstrap]
+  without: [emacs, git_test, gui, sphinx, test, X11_test]
+  install: [cmake, cmake-data, cmake-rpm-macros]
+  define:
+    _unpackaged_files_terminate_build:
+
+# texinfo for gnutls and elfutils
+- name: perl-generators # for texinfo
+  nobuild: true
+  install: [perl-generators]
+- name: perl-Text-Unidecode # for texinfo
+  nobuild: true
+  install: [perl-Text-Unidecode]
+- name: perl-Unicode-EastAsianWidth # for texinfo
+  nobuild: true
+  install: [perl-Unicode-EastAsianWidth]
+- name: perl-libintl-perl # for texinfo
+  install: [perl-libintl-perl]
+- name: texinfo
+  install: [texinfo, texinfo-tex]
+
+# gnutls for libmicrohttpd in elfutils
+- name: meson # for p11-kit
+  nobuild: true
+  install: [meson]
+- name: bash-completion # for p11-kit
+  nobuild: true
+  install: [bash-completion]
+- name: ninja-build # for p11-kit
+  with: [bootstrap]
+  install: [ninja-build]
+- name: libtasn1 # for p11-kit
+  install: [libtasn1, libtasn1-devel, libtasn1-tools]
+  patch:
+    - sed -i '/^autoreconf/d' %SPEC # we don't have gtk-doc
+- name: p11-kit # for gnutls
+  install: [p11-kit, p11-kit-devel]
+  define:
+    __meson_auto_features: auto # we don't have systemd
+  patch:
+    - sed -i 's/-Dgtk_doc=true/-Dgtk_doc=false/' %SPEC # we don't have gtk-doc
+    - sed -i '/\/gtk-doc\/$/d' %SPEC
+    - sed -i 's/-Dman=true/-Dman=false/' %SPEC # we don't have docbook
+    - sed -i '/p11-kit-remote$/,/bash-completion/{//!d;}' %SPEC
+    - sed -i '/p11-kit-server$/,/^$/{//!d;}' %SPEC
+
+- name: nettle # for gnutls
+  without: [fips]
+  install: [nettle, nettle-devel]
+- name: libunistring # for gnutls
+  install: [libunistring, libunistring-devel]
+- name: gnutls
+  without: [bootstrap, dane, fips, tpm2, gost, tests, srp, mingw]
+  install: [gnutls, gnutls-devel]
+
+# elfutils for systemtap in glib
+- name: doxygen # for libmicrohttpd
+  install: [doxygen]
+  define:
+    fedora:
+    _module_build: 1
+- name: libmicrohttpd # for elfutils
+  install: [libmicrohttpd, libmicrohttpd-devel]
+- name: elfutils
+  install: [elfutils, elfutils-devel, elfutils-libs, elfutils-libelf, elfutils-libelf-devel,
+            elfutils-debuginfod, elfutils-debuginfod-client, elfutils-debuginfod-client-devel]
+
+# docbook for glib
+- name: sgml-common # MUST! otherwise there will be many problems
+  nobuild: true
+  install: [sgml-common, xml-common]
+
+- name: opensp # for openjade
+  install: [opensp, opensp-devel]
+  define:
+    _module_build: 1
+- name: openjade # for docbook-utils
+  install: [openjade]
+- name: which # for docbook-utils
+  install: [which]
+- name: lynx # for docbook-utils
+  install: [lynx]
+- name: docbook-style-dsssl # for docbook-utils
+  nobuild: true
+  install: [docbook-style-dsssl]
+- name: docbook-dtds # for docbook-utils
+  nobuild: true
+  install: [docbook-dtds]
+- name: docbook-utils # for newt in chkconfig
+  nobuild: true
+  install: [docbook-utils]
+
+- name: docbook-style-xsl # for xmlto
+  nobuild: true
+  install: [docbook-xsl]
+- name: libxslt # for xmlto
+  install: [libxslt, libxslt-devel]
+- name: xmlto # for nss in glib
+  install: [xmlto]
+
+# libselinux for glib
+- name: pcre2 # for libsepol
+  install: [pcre2, pcre2-devel, pcre2-utf16]
+- name: libsepol # for libselinux
+  install: [libsepol, libsepol-devel, libsepol-static]
+- name: dos2unix # for swig
+  install: [dos2unix]
+- name: swig # for libselinux
+  without: [testsuite]
+  install: [swig]
+- name: libselinux
+  install: [libselinux, libselinux-devel]
+
+# glib
+- name: nss # for systemtap
+  without: [tests]
+  install: [nss, nss-devel, nss-util, nss-utils-devel, nss-softokn, nss-softokn-devel,
+            nss-softokn-freebl, nss-softokn-freebl-devel, nspr, nspr-devel]
+  patch:
+    - sed -i 's/\/configure/\/configure --build=%{_build}/' %SPEC # it doesn't use rpm's configure macro
+    - sed -i '/%{__os_install_post} \\/a\export LD_LIBRARY_PATH=$RPM_BUILD_ROOT/%{_libdir} \\' %SPEC # nss depends on itself
+- name: cpio # for systemtap
+  install: [cpio]
+- name: systemtap # for glib2
+  install: [systemtap, systemtap-sdt-devel]
+  define:
+    fedora:
+    with_openssl: 1
+    with_debuginfod: 1
+    with_python3: 1
+    with_python2_probes: 0
+    with_python3_probes: 1
+- name: marshalparser # for glib2
+  nobuild: true
+  install: [marshalparser]
+
+- name: glib2
+  install: [glib2, glib2-devel]
+  patch:
+    - sed -i 's/-Dsysprof=enabled/-Dsysprof=disabled/' %SPEC # we don't have sysprof
+    - sed -i 's/-Dgtk_doc=true/-Dgtk_doc=false/' %SPEC # we don't have gtk-doc
+    - sed -i '/\/gtk-doc\/$/d' %SPEC
+
+# ---------------------------------------------------------------------
+
+# ruby
+- name: libyaml # for ruby
+  install: [libyaml, libyaml-devel]
+- name: ruby # will error in qemu user mode
+  without: [rubypick, hardening_test, yjit]
+  install: [ruby, ruby-devel, ruby-libs, rubygems]
+
+# e2fsprogs for krb5
+- name: fuse # for e2fsprogs
+  install: [fuse, fuse-devel, fuse-libs]
+- name: e2fsprogs
+  install: [libcom_err, libcom_err-devel, libss, libss-devel]
+  define:
+    _unpackaged_files_terminate_build:
+  patch:
+    - sed -i '/%files -n e2scrub$/,/^$/d' %SPEC # we don't have systemd
+
+# chkconfig for groff in openldap
+- name: libpng # for slang
+  install: [libpng, libpng-devel]
+- name: slang # for newt
+  without: [oniguruma]
+  install: [slang, slang-devel]
+- name: newt # for chkconfig
+  install: [newt, newt-devel]
+- name: chkconfig
+  install: [alternatives]
+  define:
+    _unpackaged_files_terminate_build:
+  patch:
+    - sed -r -i '/systemd-sysv-install$/d' %SPEC # we don't have systemd
+
+# openldap for krb5
+- name: groff # for openldap
+  install: [groff, groff-base]
+  define:
+    with_x: 0
+    _unpackaged_files_terminate_build:
+  patch:
+    - sed -r -i '/mom-pdf\.pdf$/d' %SPEC # we don't have ghostscript
+    - sed -r -i '/\/pdf\/$/d' %SPEC
+  post:
+    - ln -sf soelim.groff /usr/bin/soelim
+- name: cyrus-sasl # openldap
+  install: [cyrus-sasl, cyrus-sasl-devel, cyrus-sasl-lib]
+  patch:
+    - sed -r -i 's/bootstrap_cyrus_sasl 0$/bootstrap_cyrus_sasl 1/' %SPEC # enable bootstrap
+    - sed -i '/Find Kerberos/,/^CFLAGS=/{//!d;}' %SPEC # remove krb5 and mysql postgresql dependency
+    - sed -i 's/--with-mysql=yes --with-pgsql=yes/--without-mysql --without-pgsql/' %SPEC
+    - sed -i 's/--without-sqlite/--with-sqlite3=\/usr/' %SPEC
+
+    - sed -i '/cyrusbdb2current$/d' %SPEC
+    - sed -i '/\*sasldb\*.so\*/d' %SPEC
+    - sed -i '/saslpasswd2/d' %SPEC
+    - sed -i '/sasldblistusers2/d' %SPEC
+    - sed -i '/\*gssapi\*.so\*/d' %SPEC
+    - sed -i '/libgs2.so\*/d' %SPEC
+- name: libevent # for openldap
+  install: [libevent, libevent-devel]
+- name: cracklib # for openldap
+  install: [cracklib, cracklib-devel]
+- name: openldap
+  install: [openldap, openldap-devel]
+
+# krb5
+- name: libev # for libverto
+  install: [libev, libev-devel]
+- name: libverto # for krb5
+  install: [libverto, libverto-devel]
+
+- name: python-sphinx # for krb5
+  nobuild: true
+  install: [python3-sphinx]
+- name: python-docutils # for krb5
+  nobuild: true
+  install: [python3-docutils]
+- name: babel # for krb5
+  nobuild: true
+  install: [python3-babel]
+- name: pytz # for krb5
+  nobuild: true
+  install: [python3-pytz]
+- name: python-jinja2 # for krb5
+  nobuild: true
+  install: [python3-jinja2-]
+- name: python-packaging # for krb5
+  nobuild: true
+  install: [python3-packaging]
+- name: snowball # for krb5
+  nobuild: true
+  install: [python3-snowballstemmer]
+- name: python-imagesize # for krb5
+  nobuild: true
+  install: [python3-imagesize]
+- name: python-sphinxcontrib-serializinghtml # for krb5
+  nobuild: true
+  install: [python3-sphinxcontrib-serializinghtml]
+- name: python-sphinxcontrib-applehelp # for krb5
+  nobuild: true
+  install: [python3-sphinxcontrib-applehelp]
+- name: python-sphinxcontrib-devhelp # for krb5
+  nobuild: true
+  install: [python3-sphinxcontrib-devhelp]
+- name: python-sphinxcontrib-htmlhelp # for krb5
+  nobuild: true
+  install: [python3-sphinxcontrib-htmlhelp]
+- name: python-sphinxcontrib-qthelp # for krb5
+  nobuild: true
+  install: [python3-sphinxcontrib-qthelp]
+- name: python-sphinx-theme-alabaster # for krb5
+  nobuild: true
+  install: [python3-sphinx-theme-alabaster]
+- name: python-sphinxcontrib-log-cabinet # for krb5
+  nobuild: true
+  install: [python3-sphinxcontrib-log-cabinet]
+- name: tcl # for krb5
+  install: [tcl, tcl-devel]
+- name: lmdb # for krb5
+  install: [lmdb, lmdb-devel, lmdb-libs]
+- name: krb5
+  install: [krb5-libs, krb5-devel]
+  patch:
+    - sed -i 's/--with-pam/--without-pam/' %SPEC # we don't have pam
+
+# ---------------------------------------------------------------------
+
+# freetype for fontconfig
+- name: brotli # for freetype
+  install: [brotli, brotli-devel, libbrotli]
+- name: pkgconf # for freetype
+  install: [pkgconf, libpkgconf, libpkgconf-devel]
+- name: freetype
+  with: [bootstrap]
+  install: [freetype, freetype-devel]
+
+# fontconfig for libX11
+- name: fonts-rpm-macros # for fontconfig
+  nobuild: true
+  install: [fonts-rpm-macros, fonts-srpm-macros]
+- name: fontconfig
+  install: [fontconfig, fontconfig-devel]
+
+# libX11 for texlive-base
+- name: xorg-x11-util-macros # for libXau
+  nobuild: true
+  install: [xorg-x11-util-macros]
+- name: xorg-x11-proto-devel # for libXau
+  nobuild: true
+  install: [xorg-x11-proto-devel]
+- name: libXau # for libxcb
+  install: [libXau, libXau-devel]
+- name: xcb-proto # for libxcb
+  nobuild: true
+  install: [xcb-proto]
+- name: libxcb # for libX11
+  install: [libxcb, libxcb-devel]
+- name: xorg-x11-xtrans-devel # for libX11
+  nobuild: true
+  install: [xorg-x11-xtrans-devel]
+- name: libX11
+  install: [libX11, libX11-devel]
+
+# libXaw for texlive-base
+- name: libICE # for libSM
+  install: [libICE, libICE-devel]
+- name: libSM # for libXt
+  install: [libSM, libSM-devel]
+- name: libXt # for libXaw
+  install: [libXt, libXt-devel]
+
+- name: ncompress # for libXpm
+  install: [ncompress]
+- name: libXpm # for libXaw
+  install: [libXpm, libXpm-devel]
+
+- name: libXmu # for libXaw
+  install: [libXmu, libXmu-devel]
+- name: libXaw # for texlive-base
+  install: [libXaw, libXaw-devel]
+
+# harfbuzz for texlive-base
+- name: libXext # for cairo
+  install: [libXext, libXext-devel]
+- name: libXrender # for cairo
+  install: [libXrender, libXrender-devel]
+- name: cairo # for harfbuzz
+  install: [cairo, cairo-devel]
+- name: icu # for harfbuzz. ln -sf icu-config-32 /usr/bin/icu-config-64
+  install: [icu, libicu, libicu-devel]
+- name: graphite2 # for harfbuzz
+  install: [graphite2, graphite2-devel]
+- name: gobject-introspection # for harfbuzz
+  install: [gobject-introspection, gobject-introspection-devel]
+  define:
+    __meson_auto_features: auto
+  patch:
+    - sed -i 's/-Ddoctool=enabled/-Ddoctool=disabled/' %SPEC # we don't have doctool
+- name: harfbuzz
+  install: [harfbuzz, harfbuzz-devel]
+
+# texlive-base
+- name: desktop-file-utils # for xpdf
+  install: [desktop-file-utils]
+  define:
+    _emacs_sitelispdir: '%{_datadir}/emacs/site-lisp'
+    _emacs_sitestartdir: '%{_emacs_sitelispdir}/site-start.d'
+- name: libpaper # for xpdf
+  install: [libpaper, libpaper-devel]
+- name: xpdf # for texlive-base
+  url: https://koji.fedoraproject.org/koji/buildinfo?buildID=2217462 # bug in f38
+  install: [xpdf-devel, xpdf-libs]
+  define:
+    fedora:
+- name: teckit # for texlive-base
+  install: [teckit, teckit-devel]
+- name: gd # for texlive-base
+  install: [gd, gd-devel]
+- name: pixman # for texlive-base
+  install: [pixman, pixman-devel]
+- name: zziplib # for texlive-base
+  install: [zziplib, zziplib-devel]
+- name: texlive
+  nobuild: true
+  install: [texlive-tex-ini-files, texlive-plain, texlive-etex, texlive-modes]
+- name: texlive-base
+  with: [bootstrap]
+  install: [texlive-base, texlive-lib, texlive-texlive-scripts-svn, texlive-texlive.infra
+            texlive-kpathsea, texlive-tex, texlive-metafont, texlive-pdftex]
+  patch:
+    - sed -i 's/ -Werror=format-security//' %SPEC # maybe a bug
+    - sed -i 's/s390x/s390x riscv32/' %SPEC # RISC-V 32 is not supported
+
+# gtk-doc
+- name: python-pygments # for gtk-doc
+  nobuild: true
+  install: [python3-pygments]
+- name: python-setuptools # for gtk-doc
+  nobuild: true
+  install: [python3-setuptools]
+- name: gtk-doc
+  install: [gtk-doc]
+  pre:
+    - pip install lxml
+
+# ---------------------------------------------------------------------
+
+# compress
+- name: tar
+  patch:
+    - sed -i '/%configure/i\export FORCE_UNSAFE_CONFIGURE=1\' %SPEC # root build
+- name: gzip
+- name: xz
+- name: zstd
+- name: lz4 # for systemd
+  install: [lz4, lz4-devel, lz4-libs]
+- name: zip
+  install: [zip]
+- name: unzip
+  install: [unzip]
+
+# file & filesystem for systemd
+- name: iso-codes
+  nobuild: true
+  install: [iso-codes]
+- name: file
+- name: filesystem
+  install: [filesystem]
+
+# audit for pam
+- name: libcap-ng # for audit
+  install: [libcap-ng, libcap-ng-devel]
+- name: initscripts # for audit
+  install: [initscripts, initscripts-service]
+- name: audit
+  install: [audit, audit-libs, audit-libs-devel]
+
+# pam for libcap in systemd
+- name: libxml2 # for docbook5
+  install: [libxml2, libxml2-devel, python3-libxml2]
+- name: docbook5-schemas # for pam
+  nobuild: true
+  install: [docbook5-schemas]
+- name: docbook5-style-xsl # for pam
+  nobuild: true
+  install: [docbook5-style-xsl]
+
+- name: chrpath # libdb
+  install: [chrpath]
+- name: libdb # for pam
+  install: [libdb, libdb-devel]
+- name: elinks # for pam
+  install: [elinks]
+
+- name: pam # bug in 1.5.2
+  url: https://koji.fedoraproject.org/koji/buildinfo?buildID=2206209
+  install: [pam, pam-devel, pam-libs]
+
+# shadow-utils for tpm2-tss in systemd
+- name: libsemanage # for shadow-utils
+  install: [libsemanage, libsemanage-devel]
+- name: itstool # for shadow-utils
+  install: [itstool]
+- name: shadow-utils
+  install: [shadow-utils, shadow-utils-devel, shadow-utils-subid-devel]
+  patch:
+    - sed -i 's/%caps(cap_set[ug]id=ep) //' %SPEC # rpm doesn't have libcap support yet
+
+# libfido2 for systemd
+- name: python-sphinx_rtd_theme # for libcbor
+  nobuild: true
+  install: [python3-sphinx_rtd_theme]
+- name: python-breathe # for libcbor
+  nobuild: true
+  install: [python3-breathe]
+- name: libcbor # for libfido2
+  install: [libcbor, libcbor-devel]
+- name: libfido2
+  install: [libfido2, libfido2-devel]
+
+# systemd
+- name: json-c # for tpm2-tss
+  install: [json-c, json-c-devel]
+- name: tpm2-tss # for systemd
+  install: [tpm2-tss, tpm2-tss-devel]
+- name: acl # for systemd
+  install: [acl, libacl, libacl-devel]
+- name: gperf # for systemd
+  install: [gperf]
+- name: libcap # for systemd
+  install: [libcap, libcap-devel]
+- name: libpwquality # for systemd
+  install: [libpwquality, libpwquality-devel]
+# - name: libseccomp # for systemd
+#   install: [libseccomp, libseccomp-devel]
+- name: kmod # for systemd
+  install: [kmod, kmod-devel, kmod-libs]
+- name: libidn2 # for systemd
+  install: [libidn2, libidn2-devel]
+- name: qrencode # for systemd
+  install: [qrencode, qrencode-devel, qrencode-libs]
+- name: libxkbcommon # for systemd
+  install: [libxkbcommon, libxkbcommon-devel]
+- name: systemd
+  with: [bootstrap]
+  install: [systemd, systemd-devel, systemd-libs]
+  patch:
+    - sed -i '/-Dbpf-framework/d' %SPEC # we don't have bpf
+    - sed -i 's/-Dseccomp=true/-Dseccomp=false/' %SPEC # RISC-V 32 is not supported
+    - sed -i 's/-Dlibfido2=true/-Dlibfido2=false/' %SPEC # will cause bug
+
+# util-linux
+- name: rubygem-asciidoctor # for util-linux
+  nobuild: true
+  install: [rubygem-asciidoctor]
+- name: libutempter # for util-linux
+  install: [libutempter, libutempter-devel]
+- name: util-linux
+
+# dbus
+- name: yelp-xsl # for yelp-tools
+  nobuild: true
+  install: [yelp-xsl]
+- name: yelp-tools # for dbus
+  nobuild: true
+  install: [yelp-tools]
+- name: autoconf-archive # for dbus
+  nobuild: true
+  install: [autoconf-archive]
+- name: python3-mallard-ducktype # for dbus
+  nobuild: true
+  install: [python3-mallard-ducktype]
+- name: expat # for dbus
+  install: [expat, expat-devel]
+- name: dbus
+  install: [dbus, dbus-devel, dbus-libs]
+
+# ---------------------------------------------------------------------
+
+# authselect
+- name: perl-MIME-Charset # for perl-Unicode-LineBreak
+  nobuild: true
+  install: [perl-MIME-Charset]
+- name: perl-Unicode-LineBreak # for po4a
+  install: [perl-Unicode-LineBreak]
+  patch:
+    - sed -i '/Remove bundled library$/,/^$/{//!d;}' %SPEC # we need bundled library
+- name: perl-Module-Build # for po4a
+  nobuild: true
+  install: [perl-Module-Build]
+- name: perl-Pod-Parser # for po4a
+  nobuild: true
+  install: [perl-Pod-Parser]
+- name: perl-YAML-Tiny # for po4a
+  nobuild: true
+  install: [perl-YAML-Tiny]
+- name: po4a # for authselect
+  install: [po4a]
+- name: asciidoc # for authselect
+  nobuild: true
+  install: [asciidoc]
+- name: authselect
+
+# dwz
+- name: xxhash # for dwz
+  install: [xxhash, xxhash-devel, xxhash-libs]
+- name: dwz
+
+# emacs
+- name: giflib # for emacs
+  install: [giflib, giflib-devel]
+  patch:
+    - sed -r -i '/%\{?mingw/d' %SPEC # we don't have mingw
+- name: libtiff # for emacs
+  install: [libtiff, libtiff-devel]
+- name: libjpeg-turbo # for emacs
+  install: [libjpeg-turbo, libjpeg-turbo-devel]
+- name: jansson # for emacs
+  install: [jansson, jansson-devel]
+- name: emacs
+
+# guile22 for gdb
+- name: gc # for guile22
+  install: [gc, gc-devel]
+- name: guile22
+  install: [guile22, guile22-devel]
+
+# gdb
+- name: babeltrace # for gdb
+  install: [libbabeltrace, libbabeltrace-devel]
+- name: mpfr # for gdb
+  install: [mpfr, mpfr-devel]
+- name: gdb
+  patch:
+    - sed -i 's/ifarch %{arm}/ifarch %{arm} riscv32/' %SPEC # RISC-V 32 is not supported
+    - sed -i '/%files doc/,/^$/d' %SPEC # we can't use texlive
+    - sed -i '/%make_build \\/,/^ $/d' %SPEC
+
+# gcc
+- name: libmpc # for gcc
+  install: [libmpc, libmpc-devel]
+- name: gcc
+  patch:
+    - sed -i 's/%global build_libatomic 0/%global build_libatomic 1/' %SPEC # we need libatomic for systemd
+    - sed -i 's/%ifarch ppc64le %{mips} s390x/%ifarch ppc64le %{mips} s390x riscv32/' %SPEC
+
+# libnsl2 for glibc
+- name: libtirpc # for libnsl2
+  install: [libtirpc, libtirpc-devel]
+- name: libnsl2
+  install: [libnsl2, libnsl2-devel]
+
+# libpsl
+- name: publicsuffix-list # for libpsl
+  nobuild: true
+  install: [publicsuffix-list]
+- name: libpsl
+
+# libssh for curl
+- name: cmocka # for libssh
+  install: [libcmocka, libcmocka-devel]
+- name: socket_wrapper # for libssh
+  install: [socket_wrapper]
+- name: nss_wrapper # for libssh
+  install: [nss_wrapper]
+- name: pam_wrapper # for libssh
+  install: [pam_wrapper]
+- name: uid_wrapper # for libssh
+  install: [uid_wrapper]
+  patch:
+    - sed -i 's/-DUNIT_TESTING=ON/-DUNIT_TESTING=OFF/' %SPEC # in RISC-V 32, unit test will fail
+- name: priv_wrapper # for libssh
+  install: [priv_wrapper]
+- name: softhsm # for libssh
+  install: [softhsm]
+- name: openssh # for libssh
+  install: [openssh, openssh-clients, openssh-server]
+  define:
+    noselinux: 1 # sandbox not supported on RISC-V 32
+    skip_gnome_askpass: 1 # we don't have gnome
+  patch:
+    - sed -i 's/%global libedit 1/%global libedit 0/' %SPEC # we don't have libedit
+- name: libssh
+  install: [libssh, libssh-devel]
+
+# libxcrypt
+- name: libkcapi # for libxcrypt. need kernel crypto api support
+  install: [libkcapi, libkcapi-fipscheck]
+- name: libxcrypt
+
+# nghttp2
+- name: c-ares # for nghttp2
+  install: [c-ares, c-ares-devel]
+- name: nghttp2
+  install: [libnghttp2, libnghttp2-devel]
+
+# openssl
+- name: lksctp-tools # for openssl
+  install: [lksctp-tools, lksctp-tools-devel]
+- name: openssl
+  patch:
+    - sed -i 's/${sslarch}/linux-generic32/' %SPEC
+
+# python
+- name: shared-mime-info # for gdk-pixbuf2
+  install: [shared-mime-info]
+- name: gdk-pixbuf2 # for libappstream-glib
+  install: [gdk-pixbuf2, gdk-pixbuf2-devel]
+  patch:
+    - sed -i 's/-Dgtk_doc=true/-Dgtk_doc=false/' %SPEC # we don't need doc
+    - sed -i '/\/doc\//d' %SPEC
+- name: json-glib # for libappstream-glib
+  install: [json-glib, json-glib-devel]
+  patch:
+    - sed -i 's/-Dgtk_doc=enabled/-Dgtk_doc=disabled/' %SPEC # we don't need doc
+    - sed -i '/\/doc\//d' %SPEC
+- name: libappstream-glib # for python
+  install: [libappstream-glib, libappstream-glib-devel]
+  patch:
+    - sed -i 's/%meson \\/%meson -Dfonts=false \\/' %SPEC
+    - sed -i 's/-Dstemmer=true/-Dstemmer=false/' %SPEC # we don't have stemmer
+    - sed -i '/libasb_plugin_font/d' %SPEC
+- name: mpdecimal # for python
+  install: [mpdecimal, mpdecimal-devel]
+- name: tk # for python
+  install: [tk, tk-devel]
+- name: gdbm # for python
+  install: [gdbm, gdbm-devel, gdbm-libs]
+- name: python3.12
+  url: https://koji.fedoraproject.org/koji/buildinfo?buildID=2231164
+  with: [bootstrap]
+  define:
+    _unpackaged_files_terminate_build:
+
+# some packages
+- name: coreutils
+  patch:
+    - sed -i '/%configure/i\export FORCE_UNSAFE_CONFIGURE=1\' %SPEC # root build
+- name: gawk
+  patch:
+    - sed -i '/%make_build -C doc pdf$/,/^$/d' %SPEC # we can't use texlive
+    - sed -i '/%{_docdir}/,/^$/d' %SPEC
+- name: pcre
+  patch:
+    - sed -i 's/s390x/s390x riscv32/' %SPEC # RISC-V 32 is not supported
+- name: libeconf
+  patch:
+    - sed -i 's/%cmake$/%cmake -DBUILD_DOCUMENTATION=OFF/' %SPEC # we don't have graphviz
+- name: gettext
+  patch:
+    - sed -r -i '/(_emacs_sitelispdir|_emacs_sitestartdir)/d' %SPEC # we don't have emacs
+- name: glibc
+  patch:
+    - sed -i 's/..\/configure/..\/configure libc_cv_slibdir=\/lib /' %SPEC # RISC-V 32 will install to /usr/lib32/ilp32d, but truncate want to /usr/lib
+    - sed -i '/Prepare the libnsl-related file lists./,/^$/d' %SPEC # in RISC-V 32, libnsl will not be built
+    - sed -i '/%files -f libnsl.filelist -n libnsl/,/^$/d' %SPEC
+    
+    - curl http://openkoji.iscas.ac.cn/repos/fc38-rv32/patch/glibc.patch -o `dirname %SPEC`/../SOURCES/glibc-riscv32.patch # in RISC-V 32, time64 does not work
+    - "sed -i '/Patch4/i\\Patch3: glibc-riscv32.patch\\' %SPEC"
+- name: perl
+  define:
+    perl_bootstrap: 1
+- name: rpm
+  without: [sequoia, libimaevm, fsverity]
+  install: [rpm-build, rpm-build-libs]
+  patch:
+    - curl http://openkoji.iscas.ac.cn/repos/fc38-rv32/patch/rpm.patch -o `dirname %SPEC`/../SOURCES/rpm-riscv32.patch # add support for RISC-V 32
+    - sed -i '/%patchlist/a\rpm-riscv32.patch\' %SPEC
+
+- name: curl
+- name: libattr
+- name: libarchive
+- name: libsemanage
+- name: libutempter
+- name: lua
+- name: m4
+- name: make
+- name: patch
+- name: pkgconf
+- name: popt
+- name: sed
+- name: sqlite
+- name: zlib

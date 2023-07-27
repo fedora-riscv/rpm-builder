@@ -6,7 +6,9 @@ import re
 import os
 import sys
 import glob
+import itertools
 import yaml
+from yamlinclude import YamlIncludeConstructor
 from bs4 import BeautifulSoup
 from typing import *
 
@@ -34,8 +36,9 @@ def getbuild(build: str, arch: Pattern = re.compile("\.rpm$")) -> Set[str]:
 
 
 if __name__ == "__main__":
-    packages = yaml.safe_load(open("packages.yaml"))
-    for package in packages:
+    YamlIncludeConstructor.add_to_loader_class(loader_class=yaml.FullLoader)
+    packages = yaml.load(open("packages.yaml"), Loader=yaml.FullLoader)
+    for package in itertools.chain(*packages):
         # skip if specified
         if len(sys.argv) > 1 and package["name"] not in sys.argv:
             continue
@@ -49,7 +52,7 @@ if __name__ == "__main__":
         if "url" in package:
             rpms = getbuild(package["url"])
         else:
-            builds = search(name, re.compile("fc38$"))
+            builds = search(name, re.compile("fc38"))
             for build in builds:
                 rpms = getbuild(build)
                 if len(rpms):
